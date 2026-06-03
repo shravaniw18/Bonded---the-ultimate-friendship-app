@@ -1,0 +1,60 @@
+import React, { useState } from 'react'
+import { TouchableOpacity, Text, StyleSheet } from 'react-native'
+import { colors, spacing, radius, font } from '@/lib/theme'
+
+type Props = {
+  emoji: string
+  count: number
+  onPress: () => void
+}
+
+export const ReactionPill = ({ emoji, count, onPress }: Props) => {
+  const [active, setActive] = useState(false)
+
+  const handlePress = () => {
+    setActive(!active)
+    onPress()
+  }
+
+  return (
+    <TouchableOpacity
+      onPress={handlePress}
+      activeOpacity={0.7}
+      style={[styles.pill, active && styles.pillActive]}
+    >
+      <Text style={styles.emoji}>{emoji}</Text>
+      <Text style={[styles.count, active && styles.countActive]}>
+        {count}
+      </Text>
+    </TouchableOpacity>
+  )
+}
+
+const styles = StyleSheet.create({
+  pill: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    gap:             4,
+    paddingVertical:   spacing[1],
+    paddingHorizontal: spacing[2],
+    borderRadius:    radius.full,
+    backgroundColor: colors.gray100,
+    borderWidth:     1,
+    borderColor:     colors.gray200,
+  },
+  pillActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor:     colors.primary,
+  },
+  emoji: {
+    fontSize: font.sm,
+  },
+  count: {
+    fontSize:   font.xs,
+    fontWeight: font.medium,
+    color:      colors.gray500,
+  },
+  countActive: {
+    color: colors.primary,
+  },
+})
