@@ -22,8 +22,12 @@ export const MomentCard = ({ imageUrl, caption, timeAgo, username }: Props) => {
         {caption && <Text style={styles.caption}>{caption}</Text>}
         <View style={styles.reactions}>
           <ReactionPill emoji="❤️" count={0} onPress={() => {}} />
-          <ReactionPill emoji="😂" count={0} onPress={() => {}} />
-          <ReactionPill emoji="😮" count={0} onPress={() => {}} />
+  <ReactionPill emoji="😂" count={0} onPress={() => {}} />
+  <ReactionPill emoji="😮" count={0} onPress={() => {}} />
+  <ReactionPill emoji="🔥" count={0} onPress={() => {}} />
+  <ReactionPill emoji="😭" count={0} onPress={() => {}} />
+  <ReactionPill emoji="🥹" count={0} onPress={() => {}} />
+  <ReactionPill emoji="💀" count={0} onPress={() => {}} />
         </View>
       </View>
     </View>
