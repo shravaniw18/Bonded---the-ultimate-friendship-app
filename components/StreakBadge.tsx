@@ -1,7 +1,7 @@
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { colors, font, spacing, radius } from '@/lib/theme'
-
+//hello
 type Props = {
   count: number
   size?: 'sm' | 'md'

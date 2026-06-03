@@ -1,7 +1,7 @@
 import React from 'react'
 import { View, Text, Image, StyleSheet } from 'react-native'
 import { colors, font, radius } from '@/lib/theme'
-
+//hello
 type Props = {
   imageUrl?: string
   name: string
