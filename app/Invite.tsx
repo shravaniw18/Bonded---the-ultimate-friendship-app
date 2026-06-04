@@ -136,7 +136,7 @@ export default function InviteScreen() {
 
       // success — go to home
       Alert.alert("You're bonded! 🎉", "Your friendship is now active.", [
-        { text: 'Let's go', onPress: () => router.replace('/') }
+        { text: "Let's go", onPress: () => router.replace('/') }
       ])
     } catch (e) {
       console.error('handleJoin error:', e)
