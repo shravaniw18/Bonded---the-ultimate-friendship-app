@@ -1,26 +1,39 @@
 import { useEffect, useState } from 'react'
+import { View, ActivityIndicator } from 'react-native'
 import { Stack, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 
 export default function RootLayout() {
-  const [checked, setChecked] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
+      if (session) {
+        router.replace('/(tabs)')
+      } else {
         router.replace('/login')
       }
-      setChecked(true)
+      setLoading(false)
     })
 
-    supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        router.replace('/(tabs)')
+      } else {
         router.replace('/login')
       }
     })
+
+    return () => subscription.unsubscribe()
   }, [])
 
-  if (!checked) return null
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#0a0a0a', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator color="#FF6B6B" />
+      </View>
+    )
+  }
 
   return <Stack screenOptions={{ headerShown: false }} />
 }
