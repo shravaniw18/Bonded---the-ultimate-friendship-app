@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
-import { supabase } from '../lib/supabase'
-import { colors, spacing, borderRadius } from '../lib/theme'
+import { router } from 'expo-router'
+import { supabase } from '@/lib/supabase'
+import { colors, spacing, radius } from '@/lib/theme'
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('')
@@ -27,10 +28,12 @@ export default function LoginScreen() {
           status: 'pending',
         })
         Alert.alert('Account created!', `Your invite code is: ${code}\nShare it with your friend!`)
+        router.replace('/(tabs)')
       }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) Alert.alert('Error', error.message)
+      if (error) { Alert.alert('Error', error.message); setLoading(false); return }
+      router.replace('/(tabs)')
     }
 
     setLoading(false)
@@ -39,13 +42,15 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>bonded</Text>
-      <Text style={styles.subtitle}>{isSignUp ? 'Create your account' : 'Welcome back'}</Text>
+      <Text style={styles.subtitle}>
+        {isSignUp ? 'Create your account' : 'Welcome back'}
+      </Text>
 
       {isSignUp && (
         <TextInput
           style={styles.input}
           placeholder="Username"
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={colors.gray400}
           value={username}
           onChangeText={setUsername}
           autoCapitalize="none"
@@ -55,7 +60,7 @@ export default function LoginScreen() {
       <TextInput
         style={styles.input}
         placeholder="Email"
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={colors.gray400}
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -65,14 +70,16 @@ export default function LoginScreen() {
       <TextInput
         style={styles.input}
         placeholder="Password"
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={colors.gray400}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
 
       <TouchableOpacity style={styles.button} onPress={handleAuth} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Log In'}</Text>
+        <Text style={styles.buttonText}>
+          {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Log In'}
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
@@ -85,11 +92,48 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, justifyContent: 'center', padding: spacing.lg },
-  title: { fontSize: 48, fontWeight: 'bold', color: colors.primary, textAlign: 'center', marginBottom: spacing.xs },
-  subtitle: { fontSize: 16, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl },
-  input: { backgroundColor: colors.surface, color: colors.text, padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.md, fontSize: 16 },
-  button: { backgroundColor: colors.primary, padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginBottom: spacing.md },
-  buttonText: { color: colors.text, fontWeight: 'bold', fontSize: 16 },
-  toggle: { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm },
+  container: {
+    flex:            1,
+    backgroundColor: colors.gray50,
+    justifyContent:  'center',
+    padding:         spacing.lg,
+  },
+  title: {
+    fontSize:     48,
+    fontWeight:   'bold',
+    color:        colors.primary,
+    textAlign:    'center',
+    marginBottom: spacing.xs,
+  },
+  subtitle: {
+    fontSize:     16,
+    color:        colors.gray500,
+    textAlign:    'center',
+    marginBottom: spacing.xl,
+  },
+  input: {
+    backgroundColor: colors.gray100,
+    color:           colors.gray900,
+    padding:         spacing.md,
+    borderRadius:    radius.md,
+    marginBottom:    spacing.md,
+    fontSize:        16,
+  },
+  button: {
+    backgroundColor: colors.primary,
+    padding:         spacing.md,
+    borderRadius:    radius.md,
+    alignItems:      'center',
+    marginBottom:    spacing.md,
+  },
+  buttonText: {
+    color:      colors.white,
+    fontWeight: 'bold',
+    fontSize:   16,
+  },
+  toggle: {
+    color:     colors.gray500,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
 })

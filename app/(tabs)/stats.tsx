@@ -1,6 +1,5 @@
-// app/(tabs)/stats.tsx
 import { View, Text, StyleSheet } from 'react-native'
-import { colors, font } from '@/lib/theme'
+import { colors, font, spacing } from '@/lib/theme'
 
 export default function StatsScreen() {
   return (
@@ -13,8 +12,26 @@ export default function StatsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  emoji:     { fontSize: 40, marginBottom: 12 },
-  title:     { fontSize: font.xl, fontWeight: font.bold, color: colors.text, marginBottom: 8 },
-  sub:       { fontSize: font.sm, color: colors.textSecondary, textAlign: 'center' },
+  container: {
+    flex:            1,
+    backgroundColor: colors.gray50,
+    alignItems:      'center',
+    justifyContent:  'center',
+    padding:         spacing[6],
+  },
+  emoji: {
+    fontSize:     40,
+    marginBottom: spacing[3],
+  },
+  title: {
+    fontSize:     font.xl,
+    fontWeight:   font.bold,
+    color:        colors.gray900,
+    marginBottom: spacing[2],
+  },
+  sub: {
+    fontSize:  font.sm,
+    color:     colors.gray500,
+    textAlign: 'center',
+  },
 })
