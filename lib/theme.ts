@@ -5,24 +5,24 @@
 // ─────────────────────────────────────────────
 
 export const colors = {
-  // ── Brand ──────────────────────────────────
-  primary:        '#6C63FF',
-  primaryLight:   '#EEEDFE',
-  primaryDark:    '#3C3489',
+  // ── Brand (from your palette) ──────────────
+  primary:        '#4A8FA8',   // teal blue — main buttons, active states
+  primaryLight:   '#E8F4F8',   // teal tint
+  primaryDark:    '#2D6B80',   // teal deep
 
-  accent:         '#FF6B9D',
-  accentLight:    '#FBEAF0',
-  accentDark:     '#72243E',
+  accent:         '#D4A8C0',   // dusty pink — reactions, highlights
+  accentLight:    '#F5E8EF',   // pink tint
+  accentDark:     '#8B5A72',   // pink deep
 
-  success:        '#1D9E75',
-  successLight:   '#E1F5EE',
-  successDark:    '#085041',
+  success:        '#7DB89A',   // sage green — online, streaks
+  successLight:   '#E8F5EE',   // sage tint
+  successDark:    '#3D7A5A',   // sage deep
 
-  warning:        '#F5A623',
+  warning:        '#F5A623',   // keep as is
   warningLight:   '#FAEEDA',
   warningDark:    '#633806',
 
-  danger:         '#E8412A',
+  danger:         '#E8412A',   // keep as is
   dangerLight:    '#FAECE7',
   dangerDark:     '#712B13',
 
@@ -30,37 +30,19 @@ export const colors = {
   white:          '#FFFFFF',
   black:          '#0A0A0A',
 
-  gray50:         '#F9F8F6',
-  gray100:        '#F1EFE8',
-  gray200:        '#E4E1D8',
-  gray300:        '#C8C4B8',
-  gray400:        '#9C9890',
-  gray500:        '#6B6760',
-  gray700:        '#3A3835',
-  gray900:        '#1A1916',
+  gray50:         '#F7F5F8',   // soft lavender-white background
+  gray100:        '#EDE8EF',   // card background
+  gray200:        '#D8D0DC',   // borders
+  gray300:        '#B8A8BF',   // disabled
+  gray400:        '#8A7A92',   // placeholder
+  gray500:        '#6B5C72',   // secondary text
+  gray700:        '#3D2E44',   // primary text
+  gray900:        '#1E1228',   // headings
 
-  // ── Aliases (used by login/home/index screens) ──
-  background:     '#0A0A0A',   // dark background
-  surface:        '#1A1916',   // card/input background
-  text:           '#FFFFFF',   // primary text on dark bg
-  textSecondary:  '#9C9890',   // secondary text
-  textMuted:      '#6B6760',   // placeholder text
-
-  // ── Module colours ─────────────────────────
-  moments:        '#FF6B9D',
-  study:          '#6C63FF',
-  pet:            '#FF6B9D',
-  diet:           '#1D9E75',
-  poop:           '#8B5E3C',
-  cafe:           '#F5A623',
-  book:           '#E8412A',
-  stats:          '#2D7DD2',
-
-  // ── Transparent overlays ───────────────────
+  // ── rest stays the same ────────────────────
   overlay:        'rgba(10, 10, 10, 0.45)',
   overlayLight:   'rgba(10, 10, 10, 0.15)',
 };
-
 // ─────────────────────────────────────────────
 // Typography
 // ─────────────────────────────────────────────
