@@ -8,6 +8,7 @@ import * as FileSystem from 'expo-file-system/legacy'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { colors, font, spacing, radius } from '@/lib/theme'
+import { sendPushNotification } from '@/lib/notifications'
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions()
@@ -46,19 +47,20 @@ export default function CameraScreen() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not logged in')
 
+      // ── Get friendship ────────────────────────────────────────────
       const { data: friendship } = await supabase
         .from('friendships')
-        .select('id')
+        .select('id, user_a, user_b')
         .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
         .single()
 
       if (!friendship) throw new Error('No friendship found. Make sure your friend has joined.')
 
+      // ── Upload image ──────────────────────────────────────────────
       const base64 = await FileSystem.readAsStringAsync(preview, {
         encoding: FileSystem.EncodingType.Base64,
       })
       const arrayBuffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
-
       const fileName = `${user.id}-${Date.now()}.jpg`
 
       const { error: uploadError } = await supabase.storage
@@ -71,6 +73,7 @@ export default function CameraScreen() {
         .from('moments')
         .getPublicUrl(fileName)
 
+      // ── Insert moment ─────────────────────────────────────────────
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
       const { error: insertError } = await supabase.from('moments').insert({
@@ -82,6 +85,32 @@ export default function CameraScreen() {
       })
 
       if (insertError) throw insertError
+
+      // ── Send push to friend ───────────────────────────────────────
+      const friendId = friendship.user_a === user.id
+        ? friendship.user_b
+        : friendship.user_a
+
+      const [{ data: friend }, { data: me }] = await Promise.all([
+        supabase
+          .from('users')
+          .select('push_token')
+          .eq('id', friendId)
+          .single(),
+        supabase
+          .from('users')
+          .select('username')
+          .eq('id', user.id)
+          .single(),
+      ])
+
+      if (friend?.push_token) {
+        await sendPushNotification(
+          friend.push_token,
+          '📸 New Moment!',
+          `${me?.username ?? 'Your friend'} just posted a moment`,
+        )
+      }
 
       Alert.alert('Posted!', 'Your moment is live 📸')
       router.replace('/(tabs)')
