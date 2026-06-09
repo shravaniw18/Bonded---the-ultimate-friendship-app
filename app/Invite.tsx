@@ -1,348 +1,251 @@
-// app/invite.tsx
-// ─────────────────────────────────────────────
-// Friend Invite Flow
-// Two screens in one:
-//   1. Generate your invite code + share it
-//   2. Enter a friend's code to join their friendship
-// ─────────────────────────────────────────────
-
-import React, { useState, useEffect } from 'react'
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Share,
-  ActivityIndicator,
-  ScrollView,
-  Alert,
-} from 'react-native'
+import { useState } from 'react'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
-import { Button } from '@/components/Button'
-import { Input } from '@/components/Input'
-import { colors, font, spacing, radius, shadow } from '@/lib/theme'
-
-// ─── helpers ──────────────────────────────────
-
-/** Generate a random 6-character uppercase invite code */
-const generateCode = (): string => {
-  return Math.random().toString(36).substring(2, 8).toUpperCase()
-}
-
-// ─── main component ───────────────────────────
+import { colors, font, spacing, radius } from '@/lib/theme'
 
 export default function InviteScreen() {
-  const [tab, setTab]                 = useState<'share' | 'join'>('share')
-  const [myCode, setMyCode]           = useState<string>('')
-  const [joinCode, setJoinCode]       = useState<string>('')
-  const [loadingCode, setLoadingCode] = useState(true)
-  const [joining, setJoining]         = useState(false)
-  const [error, setError]             = useState('')
+  const [code, setCode]         = useState('')
+  const [loading, setLoading]   = useState(false)
+  const [myCode, setMyCode]     = useState<string | null>(null)
+  const [tab, setTab]           = useState<'enter' | 'share'>('share')
 
-  // ── on mount: fetch or create the user's invite code ──
-  useEffect(() => {
-    initMyCode()
-  }, [])
-
-  const initMyCode = async () => {
-    setLoadingCode(true)
-    try {
+  // load my invite code on mount
+  useState(() => {
+    async function loadMyCode() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // check if user already has a friendship (as user_a)
-      const { data: existing } = await supabase
+      const { data } = await supabase
         .from('friendships')
         .select('invite_code')
         .eq('user_a', user.id)
-        .is('user_b', null)   // pending — no friend joined yet
         .single()
 
-      if (existing) {
-        setMyCode(existing.invite_code)
-      } else {
-        // create a new pending friendship row with a fresh code
-        const code = generateCode()
-        await supabase.from('friendships').insert({
-          user_a:      user.id,
-          invite_code: code,
-        })
-        setMyCode(code)
-      }
-    } catch (e) {
-      console.error('initMyCode error:', e)
-    } finally {
-      setLoadingCode(false)
+      if (data) setMyCode(data.invite_code)
     }
-  }
+    loadMyCode()
+  })
 
-  // ── share the code via native share sheet ──
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        message: `Join me on Bonded 🔗\nUse my invite code: ${myCode}`,
-      })
-    } catch (e) {
-      console.error('Share error:', e)
-    }
-  }
-
-  // ── join using a friend's code ──
-  const handleJoin = async () => {
-    const code = joinCode.trim().toUpperCase()
-    if (code.length < 6) {
-      setError('Enter a valid 6-character code')
+  async function joinWithCode() {
+    if (!code.trim()) {
+      Alert.alert('Enter a code', 'Please enter your friend\'s invite code')
       return
     }
-    setError('')
-    setJoining(true)
+
+    setLoading(true)
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) throw new Error('Not logged in')
 
-      // find the friendship row with this invite code
-      const { data: friendship, error: fetchError } = await supabase
+      // check code exists and user_b is null
+      const { data: friendship, error: findError } = await supabase
         .from('friendships')
-        .select('*')
-        .eq('invite_code', code)
-        .is('user_b', null)   // must still be pending
+        .select('id, user_a')
+        .eq('invite_code', code.trim().toUpperCase())
+        .is('user_b', null)
         .single()
 
-      if (fetchError || !friendship) {
-        setError('Code not found or already used. Double-check with your friend.')
-        setJoining(false)
-        return
-      }
+      if (findError || !friendship) throw new Error('Invalid code or already used')
+      if (friendship.user_a === user.id) throw new Error("That's your own code!")
 
-      if (friendship.user_a === user.id) {
-        setError("That's your own code! Share it with a friend.")
-        setJoining(false)
-        return
-      }
-
-      // claim the friendship — set user_b to current user
+      // link user_b
       const { error: updateError } = await supabase
         .from('friendships')
         .update({ user_b: user.id })
-        .eq('id', friendship.id)
+        .eq('invite_code', code.trim().toUpperCase())
 
-      if (updateError) {
-        setError('Something went wrong. Try again.')
-        setJoining(false)
-        return
-      }
+      if (updateError) throw updateError
 
-      // success — go to home
-      Alert.alert("You're bonded! 🎉", "Your friendship is now active.", [
-        { text: "Let's go", onPress: () => router.replace('/') }
+      Alert.alert('🎉 You\'re bonded!', 'You and your friend are now linked!', [
+        { text: 'Let\'s go!', onPress: () => router.replace('/(tabs)') }
       ])
-    } catch (e) {
-      console.error('handleJoin error:', e)
-      setError('Something went wrong. Try again.')
+
+    } catch (err: any) {
+      Alert.alert('Error', err.message)
     } finally {
-      setJoining(false)
+      setLoading(false)
     }
   }
 
-  // ─── render ─────────────────────────────────
-
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.container}
-      keyboardShouldPersistTaps="handled"
-    >
-      {/* header */}
-      <Text style={styles.heading}>Add a friend</Text>
-      <Text style={styles.subheading}>
-        Share your code or enter theirs — one of you goes first.
-      </Text>
+    <View style={styles.screen}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Bond Up 🔗</Text>
+        <Text style={styles.subtitle}>Connect with your friend to get started</Text>
+      </View>
 
       {/* tab switcher */}
-      <View style={styles.tabRow}>
+      <View style={styles.tabs}>
         <TouchableOpacity
-          style={[styles.tab, tab === 'share' && styles.tabActive]}
+          style={[styles.tabBtn, tab === 'share' && styles.tabActive]}
           onPress={() => setTab('share')}
         >
           <Text style={[styles.tabText, tab === 'share' && styles.tabTextActive]}>
-            Share my code
+            My Code
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, tab === 'join' && styles.tabActive]}
-          onPress={() => setTab('join')}
+          style={[styles.tabBtn, tab === 'enter' && styles.tabActive]}
+          onPress={() => setTab('enter')}
         >
-          <Text style={[styles.tabText, tab === 'join' && styles.tabTextActive]}>
-            Enter a code
+          <Text style={[styles.tabText, tab === 'enter' && styles.tabTextActive]}>
+            Enter Code
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* ── TAB 1: share my code ── */}
-      {tab === 'share' && (
+      {tab === 'share' ? (
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Your invite code</Text>
-
-          {loadingCode ? (
-            <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing[5] }} />
-          ) : (
-            <>
-              <View style={styles.codeBox}>
-                {myCode.split('').map((char, i) => (
-                  <View key={i} style={styles.codeChar}>
-                    <Text style={styles.codeCharText}>{char}</Text>
-                  </View>
-                ))}
-              </View>
-              <Text style={styles.codeHint}>
-                Send this to your friend. It expires once someone uses it.
-              </Text>
-              <Button label="Share code" onPress={handleShare} style={{ marginTop: spacing[3] }} />
-              <Button
-                label="Regenerate"
-                onPress={initMyCode}
-                variant="secondary"
-                style={{ marginTop: spacing[2] }}
-              />
-            </>
-          )}
+          <Text style={styles.cardTitle}>Share this with your friend</Text>
+          <Text style={styles.cardSub}>They enter this code to link up with you</Text>
+          <View style={styles.codeBox}>
+            <Text style={styles.codeText}>{myCode ?? '------'}</Text>
+          </View>
+          <Text style={styles.cardHint}>
+            Once they enter your code, you'll both be bonded 🎉
+          </Text>
         </View>
-      )}
-
-      {/* ── TAB 2: enter a code ── */}
-      {tab === 'join' && (
+      ) : (
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Enter your friend's code</Text>
-          <Input
-            placeholder="e.g. A3BX9K"
-            value={joinCode}
-            onChangeText={(t) => {
-              setJoinCode(t.toUpperCase())
-              setError('')
-            }}
+          <Text style={styles.cardTitle}>Enter your friend's code</Text>
+          <Text style={styles.cardSub}>Ask them for their invite code</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. A8B3KZ"
+            placeholderTextColor={colors.gray400}
+            value={code}
+            onChangeText={(t) => setCode(t.toUpperCase())}
             autoCapitalize="characters"
-            error={error}
-            style={{ marginTop: spacing[2] }}
+            maxLength={6}
           />
-          <Button
-            label="Join friendship"
-            onPress={handleJoin}
-            loading={joining}
-            style={{ marginTop: spacing[2] }}
-          />
+          <TouchableOpacity
+            style={[styles.button, loading && { opacity: 0.6 }]}
+            onPress={joinWithCode}
+            disabled={loading}
+          >
+            {loading
+              ? <ActivityIndicator color={colors.white} />
+              : <Text style={styles.buttonText}>Bond Up 🔗</Text>
+            }
+          </TouchableOpacity>
         </View>
       )}
 
-      {/* back link */}
-      <TouchableOpacity onPress={() => router.back()} style={styles.backLink}>
-        <Text style={styles.backText}>← Back</Text>
+      <TouchableOpacity
+        style={styles.skipBtn}
+        onPress={() => router.replace('/(tabs)')}
+      >
+        <Text style={styles.skipText}>Skip for now</Text>
       </TouchableOpacity>
-    </ScrollView>
+    </View>
   )
 }
 
-// ─── styles ───────────────────────────────────
-
 const styles = StyleSheet.create({
   screen: {
-    flex: 1,
+    flex:            1,
     backgroundColor: colors.gray50,
+    padding:         spacing[5],
+    paddingTop:      spacing[12],
   },
-  container: {
-    padding:    spacing[5],
-    paddingTop: spacing[10],
+  header: {
+    marginBottom: spacing[6],
+    gap:          spacing[2],
   },
-  heading: {
+  title: {
     fontSize:   font['3xl'],
     fontWeight: font.bold,
     color:      colors.gray900,
-    marginBottom: spacing[1],
   },
-  subheading: {
-    fontSize:   font.base,
-    color:      colors.gray500,
-    lineHeight: font.normal * font.base,
-    marginBottom: spacing[5],
+  subtitle: {
+    fontSize: font.base,
+    color:    colors.gray500,
   },
-
-  // tabs
-  tabRow: {
+  tabs: {
     flexDirection:   'row',
     backgroundColor: colors.gray100,
     borderRadius:    radius.md,
-    padding:         3,
-    marginBottom:    spacing[5],
+    padding:         spacing[1],
+    marginBottom:    spacing[4],
   },
-  tab: {
-    flex:          1,
-    paddingVertical: spacing[2],
-    alignItems:    'center',
-    borderRadius:  radius.md - 2,
+  tabBtn: {
+    flex:         1,
+    padding:      spacing[2],
+    alignItems:   'center',
+    borderRadius: radius.sm,
   },
   tabActive: {
     backgroundColor: colors.white,
-    ...shadow.sm,
   },
   tabText: {
     fontSize:   font.sm,
     fontWeight: font.medium,
-    color:      colors.gray400,
+    color:      colors.gray500,
   },
   tabTextActive: {
     color: colors.gray900,
   },
-
-  // card
   card: {
     backgroundColor: colors.white,
     borderRadius:    radius.lg,
     padding:         spacing[5],
-    ...shadow.sm,
+    gap:             spacing[4],
   },
-  cardLabel: {
-    fontSize:     font.sm,
-    fontWeight:   font.semibold,
-    color:        colors.gray500,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing[3],
+  cardTitle: {
+    fontSize:   font.lg,
+    fontWeight: font.semibold,
+    color:      colors.gray900,
   },
-
-  // code display
+  cardSub: {
+    fontSize: font.sm,
+    color:    colors.gray500,
+  },
   codeBox: {
-    flexDirection:  'row',
-    justifyContent: 'center',
-    gap:            spacing[2],
-    marginBottom:   spacing[3],
-  },
-  codeChar: {
-    width:           44,
-    height:          56,
     backgroundColor: colors.primaryLight,
     borderRadius:    radius.md,
+    padding:         spacing[5],
     alignItems:      'center',
-    justifyContent:  'center',
   },
-  codeCharText: {
-    fontSize:   font['2xl'],
-    fontWeight: font.bold,
-    color:      colors.primary,
+  codeText: {
+    fontSize:      font['3xl'],
+    fontWeight:    font.bold,
+    color:         colors.primary,
+    letterSpacing: 8,
   },
-  codeHint: {
-    fontSize:  font.sm,
+  cardHint: {
+    fontSize:  font.xs,
     color:     colors.gray400,
     textAlign: 'center',
   },
-
-  // back
-  backLink: {
-    marginTop:  spacing[6],
-    alignItems: 'center',
+  input: {
+    backgroundColor: colors.gray100,
+    color:           colors.gray900,
+    padding:         spacing[4],
+    borderRadius:    radius.md,
+    fontSize:        font.xl,
+    fontWeight:      font.bold,
+    textAlign:       'center',
+    letterSpacing:   8,
   },
-  backText: {
-    fontSize: font.base,
+  button: {
+    backgroundColor: colors.primary,
+    padding:         spacing[4],
+    borderRadius:    radius.md,
+    alignItems:      'center',
+  },
+  buttonText: {
+    color:      colors.white,
+    fontSize:   font.md,
+    fontWeight: font.bold,
+  },
+  skipBtn: {
+    alignItems: 'center',
+    marginTop:  spacing[4],
+  },
+  skipText: {
+    fontSize: font.sm,
     color:    colors.gray400,
   },
 })
