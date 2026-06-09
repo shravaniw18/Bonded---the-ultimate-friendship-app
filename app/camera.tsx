@@ -4,7 +4,7 @@ import {
   StyleSheet, Alert, ActivityIndicator
 } from 'react-native'
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera'
-
+import * as FileSystem from 'expo-file-system/legacy'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { colors, font, spacing, radius } from '@/lib/theme'
@@ -17,7 +17,6 @@ export default function CameraScreen() {
   const [uploading, setUploading]       = useState(false)
   const cameraRef                       = useRef<CameraView>(null)
 
-  // ── no permission yet ────────────────────────
   if (!permission) {
     return <View style={styles.screen} />
   }
@@ -33,14 +32,12 @@ export default function CameraScreen() {
     )
   }
 
-  // ── capture photo ────────────────────────────
   async function takePicture() {
     if (!cameraRef.current) return
     const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 })
     if (photo) setPreview(photo.uri)
   }
 
-  // ── upload to supabase ───────────────────────
   async function postMoment() {
     if (!preview) return
     setUploading(true)
@@ -49,41 +46,42 @@ export default function CameraScreen() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not logged in')
 
-      // get friendship id
       const { data: friendship } = await supabase
         .from('friendships')
         .select('id')
         .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
         .single()
 
-      if (!friendship) throw new Error('No friendship found')
+      if (!friendship) throw new Error('No friendship found. Make sure your friend has joined.')
 
-      // upload photo
-      const fileName  = `${user.id}-${Date.now()}.jpg`
-      const response  = await fetch(preview)
-      const blob      = await response.blob()
+      const base64 = await FileSystem.readAsStringAsync(preview, {
+        encoding: FileSystem.EncodingType.Base64,
+      })
+      const arrayBuffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
+
+      const fileName = `${user.id}-${Date.now()}.jpg`
 
       const { error: uploadError } = await supabase.storage
         .from('moments')
-        .upload(fileName, blob, { contentType: 'image/jpeg' })
+        .upload(fileName, arrayBuffer, { contentType: 'image/jpeg' })
 
       if (uploadError) throw uploadError
 
-      // get public url
       const { data: { publicUrl } } = supabase.storage
         .from('moments')
         .getPublicUrl(fileName)
 
-      // insert moment row
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
-      await supabase.from('moments').insert({
+      const { error: insertError } = await supabase.from('moments').insert({
         user_id:       user.id,
         friendship_id: friendship.id,
         image_url:     publicUrl,
         caption:       caption || null,
         expires_at:    expiresAt,
       })
+
+      if (insertError) throw insertError
 
       Alert.alert('Posted!', 'Your moment is live 📸')
       router.replace('/(tabs)')
@@ -95,7 +93,6 @@ export default function CameraScreen() {
     }
   }
 
-  // ── preview screen ───────────────────────────
   if (preview) {
     return (
       <View style={styles.screen}>
@@ -133,29 +130,28 @@ export default function CameraScreen() {
     )
   }
 
-  // ── camera view ──────────────────────────────
   return (
     <View style={styles.screen}>
-      <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
-        {/* top bar */}
+      <CameraView style={styles.camera} facing={facing} ref={cameraRef} />
+
+      <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.topBarBtn}>✕</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() =>
-            setFacing(f => f === 'back' ? 'front' : 'back')
+            setFacing((f: CameraType) => f === 'back' ? 'front' : 'back')
           }>
             <Text style={styles.topBarBtn}>🔄</Text>
           </TouchableOpacity>
         </View>
 
-        {/* capture button */}
         <View style={styles.bottomBar}>
           <TouchableOpacity style={styles.captureBtn} onPress={takePicture}>
             <View style={styles.captureInner} />
           </TouchableOpacity>
         </View>
-      </CameraView>
+      </View>
     </View>
   )
 }
@@ -179,11 +175,11 @@ const styles = StyleSheet.create({
     color:    colors.white,
   },
   bottomBar: {
-    position:       'absolute',
-    bottom:         spacing[10],
-    left:           0,
-    right:          0,
-    alignItems:     'center',
+    position:   'absolute',
+    bottom:     spacing[10],
+    left:       0,
+    right:      0,
+    alignItems: 'center',
   },
   captureBtn: {
     width:           80,
