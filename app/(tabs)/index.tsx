@@ -132,10 +132,15 @@ export default function MomentsScreen() {
         }
         renderItem={({ item }) => (
           <MomentCard
+            id={item.id}
             imageUrl={item.image_url}
             caption={item.caption ?? undefined}
             timeAgo={getTimeAgo(item.created_at)}
             username={item.users?.username ?? 'Unknown'}
+            onDismiss={(id) =>
+              setMoments(prev => prev.filter(m => m.id !== id))
+            }
+            onSaved={(id) => console.log('Saved:', id)}
           />
         )}
       />
@@ -198,11 +203,11 @@ const styles = StyleSheet.create({
     color:    colors.gray500,
   },
   postBtn: {
-    backgroundColor:  colors.primary,
-    paddingVertical:  spacing[3],
+    backgroundColor:   colors.primary,
+    paddingVertical:   spacing[3],
     paddingHorizontal: spacing[6],
-    borderRadius:     radius.md,
-    marginTop:        spacing[2],
+    borderRadius:      radius.md,
+    marginTop:         spacing[2],
   },
   postBtnText: {
     color:      colors.white,

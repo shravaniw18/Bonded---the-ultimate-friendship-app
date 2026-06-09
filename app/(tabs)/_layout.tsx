@@ -50,6 +50,14 @@ export default function TabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+  name="book"
+  options={{
+    tabBarIcon: ({ focused }) => (
+      <TabIcon emoji="📖" label="Book" focused={focused} />
+    ),
+  }}
+/>
     </Tabs>
   )
 }
