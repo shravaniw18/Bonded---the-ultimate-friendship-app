@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { Tabs } from 'expo-router'
 import { View, Text, StyleSheet } from 'react-native'
 import { colors, font } from '@/lib/theme'
+import { registerForPushNotifications } from '@/lib/notifications'
 
 type TabIconProps = {
   emoji: string
@@ -16,13 +18,17 @@ const TabIcon = ({ emoji, label, focused }: TabIconProps) => (
 )
 
 export default function TabsLayout() {
+  useEffect(() => {
+    registerForPushNotifications()
+  }, [])
+
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarShowLabel: false,
-        tabBarActiveTintColor: colors.primary,
+        headerShown:             false,
+        tabBarStyle:             styles.tabBar,
+        tabBarShowLabel:         false,
+        tabBarActiveTintColor:   colors.primary,
         tabBarInactiveTintColor: colors.gray400,
       }}
     >
@@ -47,6 +53,14 @@ export default function TabsLayout() {
         options={{
           tabBarIcon: ({ focused }) => (
             <TabIcon emoji="📊" label="Stats" focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="book"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon emoji="📖" label="Book" focused={focused} />
           ),
         }}
       />

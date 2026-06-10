@@ -28,7 +28,7 @@ export default function LoginScreen() {
           status: 'pending',
         })
         Alert.alert('Account created!', `Your invite code is: ${code}\nShare it with your friend!`)
-        router.replace('/(tabs)')
+        router.replace('/Invite')
       }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
