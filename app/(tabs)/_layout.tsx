@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router'
 import { View, Text, StyleSheet } from 'react-native'
 import { colors, font } from '@/lib/theme'
 import { registerForPushNotifications } from '@/lib/notifications'
+import { checkFriendOfMonth } from '@/lib/friendofMonth'
 
 type TabIconProps = {
   emoji: string
@@ -20,6 +21,7 @@ const TabIcon = ({ emoji, label, focused }: TabIconProps) => (
 export default function TabsLayout() {
   useEffect(() => {
     registerForPushNotifications()
+    checkFriendOfMonth()
   }, [])
 
   return (
