@@ -1,65 +1,109 @@
 import { useEffect, useState } from 'react'
 import {
   View, Text, FlatList, TouchableOpacity,
-  StyleSheet, RefreshControl, ActivityIndicator
+  StyleSheet, RefreshControl, ActivityIndicator, Image,
 } from 'react-native'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
-import { colors, font, spacing, radius } from '@/lib/theme'
-import { MomentCard } from '@/components/MomentCard'
+import { colors, font, spacing, radius, shadow } from '@/lib/theme'
 
-type Moment = {
-  id:         string
-  image_url:  string
-  caption:    string | null
-  created_at: string
-  expires_at: string
-  users:      { username: string }
+type FriendRow = {
+  friendship_id:  string
+  username:       string
+  latest_moment:  string | null   // image_url
+  latest_time:    string | null
+  unread:         boolean
+  moment_count:   number
 }
 
 export default function MomentsScreen() {
-  const [moments, setMoments]       = useState<Moment[]>([])
-  const [loading, setLoading]       = useState(true)
+  const [friends, setFriends]     = useState<FriendRow[]>([])
+  const [loading, setLoading]     = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  async function fetchMoments() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const { data: friendship } = await supabase
-      .from('friendships')
-      .select('id')
-      .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
-      .single()
-
-    if (!friendship) { setLoading(false); return }
-
-    const { data } = await supabase
-      .from('moments')
-      .select('id, image_url, caption, created_at, expires_at, users(username)')
-      .eq('friendship_id', friendship.id)
-      .gt('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false })
-
-    setMoments((data as any[]) ?? [])
-    setLoading(false)
-    setRefreshing(false)
-  }
-
   useEffect(() => {
-    fetchMoments()
+    fetchFriends()
 
     const channel = supabase
-      .channel('moments-feed')
+      .channel('moments-index')
       .on('postgres_changes', {
         event:  '*',
         schema: 'public',
         table:  'moments',
-      }, () => fetchMoments())
+      }, () => fetchFriends())
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
   }, [])
+
+  async function fetchFriends() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // All active friendships
+      const { data: friendships } = await supabase
+        .from('friendships')
+        .select('id, user_a, user_b')
+        .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
+        .not('user_b', 'is', null)
+
+      if (!friendships?.length) { setLoading(false); setRefreshing(false); return }
+
+      const friendIds = friendships.map(f =>
+        f.user_a === user.id ? f.user_b : f.user_a
+      )
+
+      // Get friend usernames
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, username')
+        .in('id', friendIds)
+
+      // For each friendship get latest active moment
+      const rows = await Promise.all(
+        friendships.map(async f => {
+          const friendId = f.user_a === user.id ? f.user_b : f.user_a
+          const u = users?.find(u => u.id === friendId)
+
+          const { data: moments } = await supabase
+            .from('moments')
+            .select('id, image_url, created_at, user_id')
+            .eq('friendship_id', f.id)
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false })
+
+          const latest      = moments?.[0] ?? null
+          const momentCount = moments?.length ?? 0
+          // "unread" = latest moment was posted by friend, not me
+          const unread = !!latest && latest.user_id !== user.id
+
+          return {
+            friendship_id: f.id,
+            username:      u?.username ?? 'Unknown',
+            latest_moment: latest?.image_url ?? null,
+            latest_time:   latest?.created_at ?? null,
+            unread,
+            moment_count:  momentCount,
+          } as FriendRow
+        })
+      )
+
+      // Sort: unread first, then by latest moment time
+      rows.sort((a, b) => {
+        if (a.unread && !b.unread) return -1
+        if (!a.unread && b.unread) return 1
+        if (a.latest_time && b.latest_time)
+          return new Date(b.latest_time).getTime() - new Date(a.latest_time).getTime()
+        return 0
+      })
+
+      setFriends(rows)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }
 
   function getTimeAgo(dateStr: string) {
     const diff = Date.now() - new Date(dateStr).getTime()
@@ -79,35 +123,9 @@ export default function MomentsScreen() {
     )
   }
 
-  if (moments.length === 0) {
-    return (
-      <View style={styles.screen}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Moments</Text>
-          <TouchableOpacity
-            style={styles.cameraBtn}
-            onPress={() => router.push('/camera')}
-          >
-            <Text style={styles.cameraBtnText}>📸</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>📸</Text>
-          <Text style={styles.emptyTitle}>No moments yet</Text>
-          <Text style={styles.emptySub}>Post the first one!</Text>
-          <TouchableOpacity
-            style={styles.postBtn}
-            onPress={() => router.push('/camera')}
-          >
-            <Text style={styles.postBtnText}>Post a Moment</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    )
-  }
-
   return (
     <View style={styles.screen}>
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Moments</Text>
         <TouchableOpacity
@@ -118,100 +136,107 @@ export default function MomentsScreen() {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={moments}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); fetchMoments() }}
-            tintColor={colors.primary}
-          />
-        }
-        renderItem={({ item }) => (
-          <MomentCard
-            id={item.id}
-            imageUrl={item.image_url}
-            caption={item.caption ?? undefined}
-            timeAgo={getTimeAgo(item.created_at)}
-            username={item.users?.username ?? 'Unknown'}
-            onDismiss={(id) =>
-              setMoments(prev => prev.filter(m => m.id !== id))
-            }
-            onSaved={(id) => console.log('Saved:', id)}
-          />
-        )}
-      />
+      {friends.length === 0 ? (
+        <View style={styles.center}>
+          <Text style={styles.emptyEmoji}>👥</Text>
+          <Text style={styles.emptyTitle}>No friends yet</Text>
+          <Text style={styles.emptySub}>Add a friend to start sharing moments</Text>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => router.push('/invite')}
+          >
+            <Text style={styles.addBtnText}>+ Add a Friend</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={friends}
+          keyExtractor={item => item.friendship_id}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => { setRefreshing(true); fetchFriends() }}
+              tintColor={colors.primary}
+            />
+          }
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.friendRow}
+              onPress={() => router.push({
+                pathname: '/(tabs)/moments/[friendshipId]',
+                params:   { friendshipId: item.friendship_id, username: item.username },
+              })}
+              activeOpacity={0.7}
+            >
+              {/* Avatar / latest moment thumbnail */}
+              <View style={styles.avatarWrap}>
+                {item.latest_moment ? (
+                  <Image
+                    source={{ uri: item.latest_moment }}
+                    style={styles.avatar}
+                  />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                    <Text style={styles.avatarInitial}>
+                      {item.username.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                {item.unread && <View style={styles.unreadDot} />}
+              </View>
+
+              {/* Info */}
+              <View style={styles.friendInfo}>
+                <Text style={[
+                  styles.friendName,
+                  item.unread && styles.friendNameUnread,
+                ]}>
+                  {item.username}
+                </Text>
+                <Text style={styles.friendSub}>
+                  {item.moment_count === 0
+                    ? 'No moments yet'
+                    : item.latest_time
+                      ? `${item.moment_count} moment${item.moment_count === 1 ? '' : 's'} · ${getTimeAgo(item.latest_time)}`
+                      : `${item.moment_count} moments`
+                  }
+                </Text>
+              </View>
+
+              {/* Chevron */}
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+          )}
+        />
+      )}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex:            1,
-    backgroundColor: colors.gray50,
-  },
-  header: {
-    flexDirection:     'row',
-    justifyContent:    'space-between',
-    alignItems:        'center',
-    paddingHorizontal: spacing[5],
-    paddingTop:        spacing[12],
-    paddingBottom:     spacing[3],
-    backgroundColor:   colors.white,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.gray200,
-  },
-  headerTitle: {
-    fontSize:   font['2xl'],
-    fontWeight: font.bold,
-    color:      colors.gray900,
-  },
-  cameraBtn: {
-    width:           44,
-    height:          44,
-    borderRadius:    radius.full,
-    backgroundColor: colors.primaryLight,
-    alignItems:      'center',
-    justifyContent:  'center',
-  },
-  cameraBtnText: {
-    fontSize: font.lg,
-  },
-  list: {
-    padding: spacing[4],
-    gap:     spacing[4],
-  },
-  center: {
-    flex:           1,
-    alignItems:     'center',
-    justifyContent: 'center',
-    gap:            spacing[3],
-  },
-  emptyEmoji: {
-    fontSize: 48,
-  },
-  emptyTitle: {
-    fontSize:   font.xl,
-    fontWeight: font.bold,
-    color:      colors.gray900,
-  },
-  emptySub: {
-    fontSize: font.sm,
-    color:    colors.gray500,
-  },
-  postBtn: {
-    backgroundColor:   colors.primary,
-    paddingVertical:   spacing[3],
-    paddingHorizontal: spacing[6],
-    borderRadius:      radius.md,
-    marginTop:         spacing[2],
-  },
-  postBtnText: {
-    color:      colors.white,
-    fontWeight: font.bold,
-    fontSize:   font.md,
-  },
+  screen:           { flex: 1, backgroundColor: colors.gray50 },
+  header:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing[5], paddingTop: spacing[12], paddingBottom: spacing[3], backgroundColor: colors.white, borderBottomWidth: 0.5, borderBottomColor: colors.gray200 },
+  headerTitle:      { fontSize: font['2xl'], fontWeight: font.bold, color: colors.gray900 },
+  cameraBtn:        { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  cameraBtnText:    { fontSize: font.lg },
+  center:           { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing[3] },
+  emptyEmoji:       { fontSize: 48 },
+  emptyTitle:       { fontSize: font.xl, fontWeight: font.bold, color: colors.gray900 },
+  emptySub:         { fontSize: font.sm, color: colors.gray500, textAlign: 'center' },
+  addBtn:           { backgroundColor: colors.primary, paddingVertical: spacing[3], paddingHorizontal: spacing[6], borderRadius: radius.md, marginTop: spacing[2] },
+  addBtnText:       { color: colors.white, fontWeight: font.bold, fontSize: font.md },
+  list:             { paddingVertical: spacing[2] },
+  friendRow:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[5], paddingVertical: spacing[3], backgroundColor: colors.white, borderBottomWidth: 0.5, borderBottomColor: colors.gray100, gap: spacing[3] },
+  avatarWrap:       { position: 'relative' },
+  avatar:           { width: 56, height: 56, borderRadius: radius.full },
+  avatarPlaceholder:{ backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  avatarInitial:    { fontSize: font.xl, fontWeight: font.bold, color: colors.primary },
+  unreadDot:        { position: 'absolute', bottom: 2, right: 2, width: 14, height: 14, borderRadius: radius.full, backgroundColor: colors.accent, borderWidth: 2, borderColor: colors.white },
+  friendInfo:       { flex: 1, gap: spacing[1] },
+  friendName:       { fontSize: font.md, fontWeight: font.medium, color: colors.gray700 },
+  friendNameUnread: { fontWeight: font.bold, color: colors.gray900 },
+  friendSub:        { fontSize: font.xs, color: colors.gray400 },
+  chevron:          { fontSize: font.xl, color: colors.gray300 },
 })
