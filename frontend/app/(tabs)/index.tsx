@@ -1,31 +1,119 @@
 // frontend/app/(tabs)/index.tsx
 // Home screen showing the moments feed from you and your friend, a pet HP indicator, and a floating camera action.
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { theme } from '../../lib/theme';
 import { MomentCard } from '../../components/MomentCard';
+// @ts-ignore
+import { supabase } from '../../backend/lib/supabase';
+// @ts-ignore
+import { getMoments, subscribeMoments } from '../../backend/lib/moments';
 
 interface Moment {
   id: string;
-  username: string;
-  caption: string;
-  timestamp: string;
+  user_id: string;
+  image_url: string;
+  caption: string | null;
+  created_at: string;
 }
-
-const INITIAL_MOMENTS: Moment[] = [
-  { id: '1', username: 'madiha', caption: 'coffee run ☕ before the chaos', timestamp: '2 hours ago' },
-  { id: '2', username: 'shravani', caption: 'finally submitted 😭🙏', timestamp: '5 hours ago' },
-  { id: '3', username: 'you', caption: 'caught the sunset from the roof 🌅', timestamp: 'yesterday' },
-];
 
 export default function HomeFeed() {
   const router = useRouter();
-  const [moments, setMoments] = useState<Moment[]>(INITIAL_MOMENTS);
+  const [moments, setMoments] = useState<Moment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [friendshipId, setFriendshipId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [friendUsername, setFriendUsername] = useState('friend');
+
+  const fetchInitialData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      setUserId(user.id);
+
+      const { data: friendship, error: friendshipError } = await supabase
+        .from('friendships')
+        .select('id, user_a, user_b')
+        .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
+        .eq('status', 'active')
+        .single();
+
+      if (friendshipError || !friendship) {
+        setLoading(false);
+        return;
+      }
+
+      setFriendshipId(friendship.id);
+
+      // Fetch friend's username
+      const friendId = friendship.user_a === user.id ? friendship.user_b : friendship.user_a;
+      if (friendId) {
+        const { data: friendUser } = await supabase
+          .from('users')
+          .select('username')
+          .eq('id', friendId)
+          .single();
+        if (friendUser) {
+          setFriendUsername(friendUser.username);
+        }
+      }
+
+      // Fetch moments
+      const momentsData = await getMoments(friendship.id);
+      setMoments(momentsData || []);
+    } catch (error: any) {
+      Alert.alert('oops', error.message || 'failed to load moments feed 😭');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  useEffect(() => {
+    if (!friendshipId) return;
+
+    const channel = subscribeMoments(friendshipId, (newMoment: any) => {
+      setMoments((prev) => {
+        if (prev.some((m) => m.id === newMoment.id)) return prev;
+        return [newMoment, ...prev];
+      });
+    });
+
+    return () => {
+      if (channel) {
+        channel.unsubscribe();
+      }
+    };
+  }, [friendshipId]);
 
   const handleCameraPress = () => {
     router.push('/camera');
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (error: any) {
+      Alert.alert('oops', error.message || 'failed to log out 😭');
+    }
+  };
+
+  const getTimeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
   };
 
   const handleReact = (id: string, emoji: string) => {
@@ -35,6 +123,30 @@ export default function HomeFeed() {
   const handleSave = (id: string) => {
     console.log(`Saved moment ${id}`);
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!friendshipId) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.logoText}>bonded 💛</Text>
+          <TouchableOpacity style={styles.avatar} onPress={handleLogout} activeOpacity={0.8}>
+            <Text style={styles.avatarText}>SA</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.center}>
+          <Text style={styles.emptyText}>no friend connected yet 🥺 share your invite code!</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -51,10 +163,10 @@ export default function HomeFeed() {
           </View>
         </View>
 
-        {/* Circular Avatar */}
-        <View style={styles.avatar}>
+        {/* Circular Avatar / Logout button */}
+        <TouchableOpacity style={styles.avatar} onPress={handleLogout} activeOpacity={0.8}>
           <Text style={styles.avatarText}>SA</Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       {/* Feed FlatList */}
@@ -65,9 +177,10 @@ export default function HomeFeed() {
         renderItem={({ item }) => (
           <MomentCard
             id={item.id}
-            username={item.username}
-            caption={item.caption}
-            timestamp={item.timestamp}
+            username={item.user_id === userId ? 'you' : friendUsername}
+            caption={item.caption || ''}
+            timestamp={getTimeAgo(item.created_at)}
+            imageUri={item.image_url}
             onReact={(emoji) => handleReact(item.id, emoji)}
             onSave={() => handleSave(item.id)}
           />
@@ -96,6 +209,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.lg,
   },
   header: {
     flexDirection: 'row',

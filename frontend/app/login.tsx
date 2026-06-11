@@ -7,6 +7,8 @@ import { useRouter } from 'expo-router';
 import { theme } from '../lib/theme';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
+// @ts-ignore
+import { supabase } from '../../backend/lib/supabase';
 
 export default function Login() {
   const router = useRouter();
@@ -14,8 +16,9 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     let hasError = false;
 
     if (!email.trim()) {
@@ -33,14 +36,23 @@ export default function Login() {
     }
 
     if (hasError) {
-      Alert.alert('validation failed', 'please fill in all required fields.');
+      Alert.alert('oops', 'fill in all fields 🙏');
       return;
     }
 
-    console.log('Logging in with:', { email, password });
-    
-    // Success, redirect to onboarding or tabs
-    router.replace('/onboarding');
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) throw error;
+      router.replace('/(tabs)');
+    } catch (error: any) {
+      Alert.alert('error', error.message || 'something went wrong 😭');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSignUpRedirect = () => {
@@ -84,6 +96,7 @@ export default function Login() {
               label="let's go →"
               onPress={handleLogin}
               style={styles.loginButton}
+              loading={loading}
             />
 
             <TouchableOpacity style={styles.registerLink} onPress={handleSignUpRedirect}>

@@ -7,6 +7,8 @@ import { useRouter } from 'expo-router';
 import { theme } from '../lib/theme';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
+// @ts-ignore
+import { supabase } from '../../backend/lib/supabase';
 
 export default function Register() {
   const router = useRouter();
@@ -19,8 +21,9 @@ export default function Register() {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     let hasError = false;
 
     if (!username.trim()) {
@@ -55,14 +58,34 @@ export default function Register() {
     }
 
     if (hasError) {
-      Alert.alert('validation failed', 'please fix form errors and try again.');
+      Alert.alert('oops', 'fill in all fields 🙏');
       return;
     }
 
-    console.log('Registering user with:', { username, email, password });
-    
-    // Redirect to onboarding as specified
-    router.replace('/onboarding');
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+      });
+      if (error) throw error;
+
+      // Insert username into users table
+      if (data.user) {
+        const { error: insertError } = await supabase.from('users').insert({
+          id: data.user.id,
+          username: username.trim(),
+          email: email.trim(),
+        });
+        if (insertError) throw insertError;
+      }
+      
+      router.replace('/onboarding');
+    } catch (error: any) {
+      Alert.alert('error', error.message || 'something went wrong 😭');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLoginRedirect = () => {
@@ -124,6 +147,7 @@ export default function Register() {
               label="create account →"
               onPress={handleRegister}
               style={styles.registerButton}
+              loading={loading}
             />
 
             <TouchableOpacity style={styles.loginLink} onPress={handleLoginRedirect}>

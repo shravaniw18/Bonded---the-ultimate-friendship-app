@@ -2,7 +2,7 @@
 // Renders a media card for shared moments, with reaction emoji buttons, save button, and click handlers.
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { theme } from '../lib/theme';
 
 export interface MomentCardProps {
@@ -10,6 +10,7 @@ export interface MomentCardProps {
   username: string;
   caption: string;
   timestamp: string;
+  imageUri?: string;
   onReact?: (emoji: string) => void;
   onSave?: () => void;
 }
@@ -18,6 +19,7 @@ export const MomentCard: React.FC<MomentCardProps> = ({
   username,
   caption,
   timestamp,
+  imageUri,
   onReact,
   onSave,
 }) => {
@@ -55,10 +57,14 @@ export const MomentCard: React.FC<MomentCardProps> = ({
         </Text>
       </TouchableOpacity>
 
-      {/* Image Placeholder */}
-      <View style={styles.imagePlaceholder}>
-        <Text style={styles.imagePlaceholderText}>📸 moment image</Text>
-      </View>
+      {/* Image */}
+      {imageUri ? (
+        <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" />
+      ) : (
+        <View style={styles.imagePlaceholder}>
+          <Text style={styles.imagePlaceholderText}>📸 moment image</Text>
+        </View>
+      )}
 
       {/* Content */}
       <View style={styles.contentContainer}>
@@ -141,6 +147,12 @@ const styles = StyleSheet.create({
   },
   activeSaveText: {
     color: theme.colors.primary,
+  },
+  image: {
+    height: 200,
+    borderRadius: theme.radius.md,
+    marginBottom: theme.spacing.sm,
+    width: '100%',
   },
   imagePlaceholder: {
     height: 200,

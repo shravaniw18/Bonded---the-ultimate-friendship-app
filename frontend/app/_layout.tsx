@@ -1,11 +1,41 @@
 // frontend/app/_layout.tsx
-// Root layout for the Bonded application. Sets up SafeAreaProvider and Stack Navigation.
+// Root layout for the Bonded application. Sets up SafeAreaProvider, Stack Navigation, and authentication state listener redirects.
 
-import React from 'react';
-import { Stack } from 'expo-router';
+import React, { useEffect } from 'react';
+import { Stack, useRouter } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+// @ts-ignore
+import { supabase } from '../../backend/lib/supabase';
 
 export default function RootLayout() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Check session on mount
+    supabase.auth.getSession().then(({ data: { session } }: any) => {
+      if (session) {
+        router.replace('/(tabs)');
+      } else {
+        router.replace('/login');
+      }
+    }).catch(() => {
+      router.replace('/login');
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
+      if (event === 'SIGNED_IN' || session) {
+        router.replace('/(tabs)');
+      } else if (event === 'SIGNED_OUT' || !session) {
+        router.replace('/login');
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   return (
     <SafeAreaProvider>
       <Stack
