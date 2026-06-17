@@ -4,7 +4,7 @@ import {
   StyleSheet, Alert, ActivityIndicator
 } from 'react-native'
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera'
-import * as FileSystem from 'expo-file-system/legacy'
+import * as FileSystem from 'expo-file-system'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { colors, font, spacing, radius } from '@/lib/theme'
@@ -58,7 +58,7 @@ export default function CameraScreen() {
 
       // ── Upload image ──────────────────────────────────────────────
       const base64 = await FileSystem.readAsStringAsync(preview, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
       })
       const arrayBuffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
       const fileName = `${user.id}-${Date.now()}.jpg`
