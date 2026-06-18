@@ -84,12 +84,23 @@ export default function FriendMomentsScreen() {
           <Text style={styles.backText}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{username}</Text>
-        <TouchableOpacity
-          style={styles.cameraBtn}
-          onPress={() => router.push('/camera')}
-        >
-          <Text style={styles.cameraBtnText}>📸</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.cameraBtn}
+            onPress={() => router.push({
+              pathname: '/(tabs)/moments/chat/[friendshipId]',
+              params:   { friendshipId, username },
+            })}
+          >
+            <Text style={styles.cameraBtnText}>💬</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cameraBtn}
+            onPress={() => router.push('/camera')}
+          >
+            <Text style={styles.cameraBtnText}>📸</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {moments.length === 0 ? (
@@ -142,6 +153,7 @@ const styles = StyleSheet.create({
   backBtn:       { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   backText:      { fontSize: 32, color: colors.gray700, lineHeight: 36 },
   headerTitle:   { fontSize: font.lg, fontWeight: font.bold, color: colors.gray900 },
+  headerActions: { flexDirection: 'row', gap: spacing[2] },
   cameraBtn:     { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
   cameraBtnText: { fontSize: font.lg },
   center:        { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing[3] },
