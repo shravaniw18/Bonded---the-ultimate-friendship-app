@@ -4,11 +4,11 @@ import {
   StyleSheet, Alert, ActivityIndicator
 } from 'react-native'
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera'
-import * as FileSystem from 'expo-file-system'
 import { router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { colors, font, spacing, radius } from '@/lib/theme'
 import { sendPushNotification } from '@/lib/notifications'
+import * as FileSystem from 'expo-file-system/legacy'
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions()
