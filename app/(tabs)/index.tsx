@@ -10,7 +10,7 @@ import { colors, font, spacing, radius, shadow } from '@/lib/theme'
 type FriendRow = {
   friendship_id:  string
   username:       string
-  latest_moment:  string | null   // image_url
+  latest_moment:  string | null
   latest_time:    string | null
   unread:         boolean
   moment_count:   number
@@ -123,12 +123,20 @@ export default function MomentsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Moments</Text>
-        <TouchableOpacity
-          style={styles.cameraBtn}
-          onPress={() => router.push('/camera')}
-        >
-          <Text style={styles.cameraBtnText}>📸</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => router.push('/invite')}
+          >
+            <Text style={styles.iconBtnText}>➕</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => router.push('/camera')}
+          >
+            <Text style={styles.iconBtnText}>📸</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {friends.length === 0 ? (
@@ -156,9 +164,16 @@ export default function MomentsScreen() {
               tintColor={colors.primary}
             />
           }
+          ListFooterComponent={
+            <TouchableOpacity
+              style={styles.addMoreBtn}
+              onPress={() => router.push('/invite')}
+            >
+              <Text style={styles.addMoreText}>+ Add another friend</Text>
+            </TouchableOpacity>
+          }
           renderItem={({ item }) => (
             <View style={styles.friendRow}>
-              {/* Tappable main area → moments feed */}
               <TouchableOpacity
                 style={styles.friendRowMain}
                 onPress={() => router.push({
@@ -201,7 +216,6 @@ export default function MomentsScreen() {
                 </View>
               </TouchableOpacity>
 
-              {/* Chat button → chat screen */}
               <TouchableOpacity
                 style={styles.chatBtn}
                 onPress={() => router.push({
@@ -223,8 +237,9 @@ const styles = StyleSheet.create({
   screen:           { flex: 1, backgroundColor: colors.gray50 },
   header:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing[5], paddingTop: spacing[12], paddingBottom: spacing[3], backgroundColor: colors.white, borderBottomWidth: 0.5, borderBottomColor: colors.gray200 },
   headerTitle:      { fontSize: font['2xl'], fontWeight: font.bold, color: colors.gray900 },
-  cameraBtn:        { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
-  cameraBtnText:    { fontSize: font.lg },
+  headerActions:    { flexDirection: 'row', gap: spacing[2] },
+  iconBtn:          { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  iconBtnText:      { fontSize: font.lg },
   center:           { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing[3] },
   emptyEmoji:       { fontSize: 48 },
   emptyTitle:       { fontSize: font.xl, fontWeight: font.bold, color: colors.gray900 },
@@ -232,6 +247,8 @@ const styles = StyleSheet.create({
   addBtn:           { backgroundColor: colors.primary, paddingVertical: spacing[3], paddingHorizontal: spacing[6], borderRadius: radius.md, marginTop: spacing[2] },
   addBtnText:       { color: colors.white, fontWeight: font.bold, fontSize: font.md },
   list:             { paddingVertical: spacing[2] },
+  addMoreBtn:       { alignItems: 'center', padding: spacing[4] },
+  addMoreText:      { fontSize: font.sm, color: colors.primary, fontWeight: font.semibold },
   friendRow:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[5], paddingVertical: spacing[3], backgroundColor: colors.white, borderBottomWidth: 0.5, borderBottomColor: colors.gray100, gap: spacing[2] },
   friendRowMain:    { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   avatarWrap:       { position: 'relative' },
