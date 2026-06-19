@@ -4,39 +4,39 @@ import { colors, font, spacing, radius, shadow } from '@/lib/theme'
 
 const modules = [
   {
-    emoji:    '📚',
-    title:    'Study Battles',
-    sub:      'Log hours, track streaks',
-    color:    colors.primaryLight,
-    route:    '/(tabs)/modules/study',
+    emoji: '📚',
+    title: 'Study Battles',
+    sub:   'Log hours, track streaks, and compete on weekly leaderboards',
+    color: colors.primaryLight,
+    route: '/(tabs)/modules/study',
   },
   {
-    emoji:    '🐾',
-    title:    'Shared Pet',
-    sub:      'Keep your pet alive together',
-    color:    colors.accentLight,
-    route:    '/(tabs)/modules/pet',
+    emoji: '🐾',
+    title: 'Shared Pet',
+    sub:   'Feed, play, and bathe your gecko together',
+    color: colors.accentLight,
+    route: '/(tabs)/modules/pet',
   },
   {
-    emoji:    '🥗',
-    title:    'Diet Sync',
-    sub:      'Log meals, hit shared goals',
-    color:    colors.successLight,
-    route:    '/(tabs)/modules/diet',
+    emoji: '🥗',
+    title: 'Diet Sync',
+    sub:   'Log meals and hit your shared calorie goals',
+    color: colors.successLight,
+    route: '/(tabs)/modules/diet',
   },
   {
-    emoji:    '🚽',
-    title:    'Poop League',
-    sub:      'Rate and compete',
-    color:    '#F5EDE4',
-    route:    '/(tabs)/modules/poop',
+    emoji: '🚽',
+    title: 'Poop League',
+    sub:   'Rate, log, and compete on the leaderboard',
+    color: colors.warningLight,
+    route: '/(tabs)/modules/poop',
   },
   {
-    emoji:    '☕',
-    title:    'Cafe Finder',
-    sub:      'Find your next hangout spot',
-    color:    colors.warningLight,
-    route:    '/(tabs)/modules/cafe',
+    emoji: '☕',
+    title: 'Cafe Finder',
+    sub:   'Find your next hangout spot nearby',
+    color: colors.primaryLight,
+    route: '/(tabs)/modules/cafe',
   },
 ]
 
@@ -50,22 +50,23 @@ export default function ModulesScreen() {
       <Text style={styles.heading}>Modules</Text>
       <Text style={styles.sub}>Everything you do together</Text>
 
-      <View style={styles.grid}>
-        {modules.map((mod) => (
-          <TouchableOpacity
-            key={mod.title}
-            style={styles.card}
-            onPress={() => router.push(mod.route as any)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.iconBox, { backgroundColor: mod.color }]}>
-              <Text style={styles.emoji}>{mod.emoji}</Text>
-            </View>
+      {modules.map((mod) => (
+        <TouchableOpacity
+          key={mod.title}
+          style={styles.card}
+          onPress={() => router.push(mod.route as any)}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.iconBox, { backgroundColor: mod.color }]}>
+            <Text style={styles.emoji}>{mod.emoji}</Text>
+          </View>
+          <View style={styles.cardText}>
             <Text style={styles.cardTitle}>{mod.title}</Text>
             <Text style={styles.cardSub}>{mod.sub}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </TouchableOpacity>
+      ))}
     </ScrollView>
   )
 }
@@ -78,49 +79,54 @@ const styles = StyleSheet.create({
   content: {
     padding:    spacing[5],
     paddingTop: spacing[12],
+    gap:        spacing[4],
+    paddingBottom: spacing[8],
   },
   heading: {
-    fontSize:     font['3xl'],
-    fontWeight:   font.bold,
-    color:        colors.gray900,
-    marginBottom: spacing[1],
+    fontSize:   font['3xl'],
+    fontWeight: font.bold,
+    color:      colors.gray900,
   },
   sub: {
     fontSize:     font.base,
     color:        colors.gray500,
-    marginBottom: spacing[6],
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap:      'wrap',
-    gap:           spacing[4],
+    marginBottom: spacing[2],
   },
   card: {
-    width:           '47%',
+    flexDirection:   'row',
+    alignItems:      'center',
     backgroundColor: colors.white,
-    borderRadius:    radius.lg,
-    padding:         spacing[4],
-    ...shadow.sm,
+    borderRadius:    radius.xl,
+    padding:         spacing[5],
+    gap:             spacing[4],
+    minHeight:       110,
+    ...shadow.md,
   },
   iconBox: {
-    width:          52,
-    height:         52,
-    borderRadius:   radius.md,
+    width:          64,
+    height:         64,
+    borderRadius:   radius.lg,
     alignItems:     'center',
     justifyContent: 'center',
-    marginBottom:   spacing[3],
   },
   emoji: {
-    fontSize: font.xl,
+    fontSize: 32,
+  },
+  cardText: {
+    flex: 1,
+    gap:  spacing[1],
   },
   cardTitle: {
-    fontSize:     font.md,
-    fontWeight:   font.semibold,
-    color:        colors.gray900,
-    marginBottom: spacing[1],
+    fontSize:   font.lg,
+    fontWeight: font.bold,
+    color:      colors.gray900,
   },
   cardSub: {
-    fontSize: font.xs,
+    fontSize: font.sm,
     color:    colors.gray500,
+  },
+  chevron: {
+    fontSize: font['2xl'],
+    color:    colors.gray300,
   },
 })
